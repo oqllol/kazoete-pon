@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>かぞえて ポン ｜ エンド工作室</title>
+<meta name="description" content="でてきた どうぶつを かぞえて、その かずの ボタンを ポン。3〜5さいの ための、かずの けいさんの だいいっぽ。">
+<meta name="theme-color" content="#cdeafb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#fff6e2; --sky:#cdeafb; --card:#fff; --ink:#4a3b28; --ink-soft:#93836c;
+    --coral:#ff6b6b; --coral-d:#e84f4f; --yellow:#ffd93d; --yellow-d:#f5a623;
+    --blue:#4dabf7; --green:#51c96f; --grape:#b07be0;
+    --maru:"Zen Maru Gothic", system-ui, sans-serif;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    margin:0; font-family:var(--maru); color:var(--ink);
+    background:linear-gradient(180deg, var(--sky) 0%, #ffeede 40%, var(--cream) 100%);
+    background-attachment:fixed; overflow:hidden;
+    -webkit-font-smoothing:antialiased; user-select:none; -webkit-user-select:none;
+    touch-action:manipulation;
+  }
+  /* ふわふわ雲（ポータルと同じ世界観） */
+  .sky-deco{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+  .cloud{ position:absolute; background:#fff; border-radius:50%; opacity:.7;
+    box-shadow:40px 8px 0 -4px #fff, 78px 0 0 -8px #fff, -34px 6px 0 -6px #fff; }
+  .c1{ width:60px; height:60px; top:7%;  left:-15%; animation:drift 50s linear infinite; }
+  .c2{ width:44px; height:44px; top:20%; left:-15%; animation:drift 70s linear infinite; animation-delay:-25s; opacity:.55; }
+  @keyframes drift{ to{ transform:translateX(135vw); } }
+
+  .app{ position:relative; z-index:1; height:100dvh; display:flex; flex-direction:column;
+    max-width:680px; margin:0 auto; padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom); }
+
+  /* ============ じょうぶ バー ============ */
+  .topbar{ display:flex; align-items:center; gap:10px; padding:12px 4px 6px; }
+  .home{ font-family:var(--maru); font-weight:900; font-size:14px; color:var(--ink);
+    background:#fff; border:none; border-radius:100px; padding:8px 15px; cursor:pointer;
+    box-shadow:0 4px 0 rgba(0,0,0,.08); }
+  .home:active{ transform:translateY(2px); box-shadow:0 2px 0 rgba(0,0,0,.08); }
+  .progress{ flex:1; height:16px; background:#fff; border-radius:100px; overflow:hidden;
+    box-shadow:inset 0 2px 4px rgba(0,0,0,.08); }
+  .progress > i{ display:block; height:100%; width:0%; border-radius:100px;
+    background:linear-gradient(90deg,var(--yellow),var(--yellow-d)); transition:width .5s cubic-bezier(.34,1.56,.5,1); }
+  .stars{ font-family:var(--maru); font-weight:900; font-size:15px; color:var(--yellow-d);
+    background:#fff; border-radius:100px; padding:6px 13px; box-shadow:0 4px 0 rgba(0,0,0,.06); white-space:nowrap; }
+
+  /* ============ といかけ ============ */
+  .ask{ text-align:center; padding:6px 0 2px; }
+  .ask h1{ font-family:var(--maru); font-weight:900; margin:0; line-height:1.3;
+    font-size:clamp(22px,6vw,32px); color:var(--ink); text-shadow:2px 2px 0 #fff; }
+  .ask .hint{ font-weight:700; font-size:13px; color:var(--ink-soft); margin:6px 0 0; }
+
+  /* ============ あそびば（どうぶつが でる ところ） ============ */
+  .stage{ flex:1; min-height:0; position:relative; margin:8px 0;
+    background:rgba(255,255,255,.45); border:3px dashed rgba(245,166,35,.5);
+    border-radius:26px; overflow:hidden; }
+  .stage::before{ content:""; position:absolute; inset:0;
+    background-image:radial-gradient(rgba(255,255,255,.6) 2px, transparent 2px);
+    background-size:22px 22px; opacity:.5; }
+  .field{ position:absolute; inset:0; display:flex; flex-wrap:wrap; align-content:center;
+    justify-content:center; gap:clamp(6px,2.2vw,16px); padding:14px; }
+  .critter{ position:relative; cursor:pointer; line-height:1;
+    font-size:clamp(40px,12vw,72px);
+    animation:plop .5s cubic-bezier(.34,1.7,.5,1) both;
+    transition:transform .15s; }
+  @keyframes plop{ from{ opacity:0; transform:scale(0) rotate(-30deg);} to{ opacity:1; transform:scale(1);} }
+  .critter:active{ transform:scale(.9); }
+  .critter.counted{ animation:wob .4s ease; }
+  @keyframes wob{ 0%{transform:scale(1);} 40%{transform:scale(1.28) translateY(-8px);} 100%{transform:scale(1);} }
+  /* タップでつく かずの ふきだし */
+  .critter .num{ position:absolute; top:-14px; left:50%; transform:translateX(-50%) scale(0);
+    font-family:var(--maru); font-weight:900; font-size:24px; color:#fff;
+    background:var(--coral); width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 0 var(--coral-d); }
+  .critter.counted .num{ transform:translateX(-50%) scale(1); transition:transform .25s cubic-bezier(.34,1.7,.5,1); }
+
+  .recount{ position:absolute; bottom:12px; left:50%; transform:translateX(-50%);
+    font-family:var(--maru); font-weight:900; font-size:14px; color:var(--ink-soft);
+    background:#fff; border:none; border-radius:100px; padding:8px 18px; cursor:pointer;
+    box-shadow:0 4px 0 rgba(0,0,0,.08); z-index:3; }
+  .recount:active{ transform:translateX(-50%) translateY(2px); box-shadow:0 2px 0 rgba(0,0,0,.08); }
+
+  /* ============ こたえの ボタン ============ */
+  .choices{ display:flex; justify-content:center; gap:clamp(10px,3vw,18px); padding:6px 0 10px; flex-wrap:wrap; }
+  .choice{ font-family:var(--maru); font-weight:900; font-size:clamp(30px,9vw,46px); color:#fff;
+    width:clamp(74px,22vw,100px); height:clamp(74px,22vw,100px); border:none; border-radius:24px; cursor:pointer;
+    background:var(--blue); box-shadow:0 7px 0 #2f8fd6, 0 12px 18px -8px rgba(0,0,0,.4);
+    transition:transform .12s; }
+  .choice:nth-child(3n+2){ background:var(--coral); box-shadow:0 7px 0 var(--coral-d), 0 12px 18px -8px rgba(0,0,0,.4); }
+  .choice:nth-child(3n+3){ background:var(--green); box-shadow:0 7px 0 #38a754, 0 12px 18px -8px rgba(0,0,0,.4); }
+  .choice:active{ transform:translateY(4px); }
+  .choice.wrong{ animation:shake .4s; }
+  @keyframes shake{ 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 60%{transform:translateX(8px);} }
+  .choice:disabled{ opacity:.55; }
+
+  /* ============ フィードバック ============ */
+  .flash{ position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
+    pointer-events:none; }
+  .flash.show{ display:flex; }
+  .flash .word{ font-family:var(--maru); font-weight:900; font-size:clamp(44px,15vw,90px);
+    color:var(--green); text-shadow:3px 3px 0 #fff, 6px 6px 0 rgba(0,0,0,.08);
+    animation:pop .6s cubic-bezier(.34,1.7,.5,1); }
+  @keyframes pop{ 0%{transform:scale(0) rotate(-12deg);} 60%{transform:scale(1.15) rotate(4deg);} 100%{transform:scale(1) rotate(0);} }
+
+  /* ============ かいし／ごほうび 画面 ============ */
+  .screen{ position:fixed; inset:0; z-index:30; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:30px;
+    background:linear-gradient(180deg, var(--sky) 0%, #ffeede 45%, var(--cream) 100%); }
+  .screen.hide{ display:none; }
+  .screen .big{ font-family:var(--maru); font-weight:900; font-size:clamp(34px,9vw,56px); margin:0;
+    color:var(--coral); text-shadow:2px 2px 0 #fff; }
+  .screen .sub{ font-weight:700; color:var(--ink-soft); font-size:15px; margin:14px 0 0; max-width:24em; }
+  .bigmark{ font-size:clamp(80px,26vw,140px); line-height:1; animation:bob 2.6s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{transform:translateY(0) rotate(-4deg);} 50%{transform:translateY(-12px) rotate(4deg);} }
+  .start-btn{ margin-top:26px; font-family:var(--maru); font-weight:900; font-size:24px; color:#fff;
+    background:var(--coral); border:none; border-radius:100px; padding:18px 46px; cursor:pointer;
+    box-shadow:0 8px 0 var(--coral-d), 0 16px 24px -10px rgba(0,0,0,.4); }
+  .start-btn:active{ transform:translateY(4px); box-shadow:0 4px 0 var(--coral-d); }
+  .stickers{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; max-width:340px; margin:22px auto 0; }
+  .stickers span{ font-size:34px; animation:pop .5s cubic-bezier(.34,1.7,.5,1) both; }
+  .toggle-row{ margin-top:20px; display:flex; gap:8px; }
+  .toggle-row button{ font-family:var(--maru); font-weight:700; font-size:13px; color:var(--ink);
+    background:#fff; border:none; border-radius:100px; padding:9px 16px; cursor:pointer;
+    box-shadow:0 4px 0 rgba(0,0,0,.06); }
+  .toggle-row button[aria-pressed="false"]{ opacity:.5; }
+
+  /* こんふぇってぃ */
+  .confetti{ position:fixed; top:-10px; width:12px; height:16px; z-index:25; pointer-events:none; border-radius:2px; }
+  @keyframes fall{ to{ transform:translateY(108vh) rotate(540deg); opacity:.2; } }
+
+  @media (prefers-reduced-motion: reduce){
+    .critter,.cloud,.bigmark,.flash .word{ animation:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="sky-deco"><div class="cloud c1"></div><div class="cloud c2"></div></div>
+
+<!-- ================= かいし がめん ================= -->
+<div class="screen" id="startScreen">
+  <div class="bigmark">🐰</div>
+  <h1 class="big">かぞえて ポン</h1>
+  <p class="sub">でてきた どうぶつを かぞえて、おなじ かずの ボタンを ポン！ぜんぶで 10もん。</p>
+  <button class="start-btn" id="startBtn">はじめる</button>
+  <div class="toggle-row">
+    <button id="soundToggle" aria-pressed="true">🔊 おと あり</button>
+  </div>
+</div>
+
+<!-- ================= ごほうび がめん ================= -->
+<div class="screen hide" id="rewardScreen">
+  <div class="bigmark" id="rewardMark">🏆</div>
+  <h1 class="big">やったね！</h1>
+  <p class="sub" id="rewardSub">10もん クリア！シールを ゲット！</p>
+  <div class="stickers" id="stickers"></div>
+  <button class="start-btn" id="againBtn">もういちど</button>
+</div>
+
+<!-- ================= ゲーム ほんたい ================= -->
+<div class="app" id="game" style="display:none">
+  <div class="topbar">
+    <button class="home" id="homeBtn">🏠</button>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="stars" id="score">⭐ 0</div>
+  </div>
+
+  <div class="ask">
+    <h1 id="question">なんびき いるかな？</h1>
+    <p class="hint">タップ して かぞえても いいよ</p>
+  </div>
+
+  <div class="stage">
+    <div class="field" id="field"></div>
+    <button class="recount" id="recountBtn" style="display:none">かぞえなおす</button>
+  </div>
+
+  <div class="choices" id="choices"></div>
+</div>
+
+<div class="flash" id="flash"><div class="word" id="flashWord">せいかい！</div></div>
+
+<script>
+/* ============================================================
+   かぞえて ポン  —  3〜5さい / かずの けいさん レベル1
+   「でてきた ものを かぞえる」だけ。けいさん記号は つかわない。
+   ============================================================ */
+
+const CRITTERS = ["🐰","🐱","🐶","🐻","🐸","🐥","🐧","🦊","🐤","🐹","🐢","🐬"];
+const STICKERS = ["🌟","🌈","🍓","🦄","🎈","🌸","🐞","🍭","⭐","🎀","🐠","🍀"];
+const TOTAL_Q  = 10;
+
+const state = {
+  q: 0,            // いまの もんだい ばんごう (0..9)
+  correct: 0,      // せいかい した かず
+  answer: 0,       // いまの こたえ
+  locked: false,   // こたえ うけつけ ちゅう か
+  counted: 0,      // タップで かぞえた かず
+  sound: true,
+  earned: []       // ゲットした シール
+};
+
+const $ = id => document.getElementById(id);
+
+/* ---------- おと（WebAudio：iOSでも たしかに なる）---------- */
+let actx = null;
+function audio(){ if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return actx; }
+function beep(freqs, dur=0.12, type="sine", gain=0.18){
+  if(!state.sound) return;
+  const a = audio(); if(!a) return;
+  let t = a.currentTime;
+  freqs.forEach((f,i)=>{
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.value = f;
+    o.connect(g); g.connect(a.destination);
+    const st = t + i*dur;
+    g.gain.setValueAtTime(0, st);
+    g.gain.linearRampToValueAtTime(gain, st+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, st+dur);
+    o.start(st); o.stop(st+dur);
+  });
+}
+const sndCount   = ()=> beep([660], 0.10, "sine", 0.14);
+const sndCorrect = ()=> beep([523,659,784,1047], 0.13, "triangle", 0.2);
+const sndWrong   = ()=> beep([330,247], 0.16, "sine", 0.16);
+const sndPop     = ()=> beep([880,1175], 0.12, "triangle", 0.18);
+
+/* よみあげ（あれば。なくても ゲームは すすむ） */
+function say(text){
+  if(!state.sound || !("speechSynthesis" in window)) return;
+  try{
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "ja-JP"; u.rate = 0.95; u.pitch = 1.25;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* ---------- もんだいの かず（だんだん ふえる）---------- */
+function targetCount(q){
+  let max;
+  if(q < 3)      max = 3;   // さいしょは 1〜3
+  else if(q < 6) max = 5;   // つぎは 1〜5
+  else           max = 9;   // さいごは 1〜9
+  return 1 + Math.floor(Math.random()*max);
+}
+
+/* こたえの せんたくし（せいかい ＋ ちかい はずれ を 3つ）*/
+function makeChoices(answer){
+  const set = new Set([answer]);
+  while(set.size < 3){
+    let d = answer + (Math.floor(Math.random()*5) - 2); // ±2 くらい
+    if(d < 1) d = answer + 1 + Math.floor(Math.random()*2);
+    if(d > 10) d = answer - 1;
+    if(d >= 1) set.add(d);
+  }
+  return [...set].sort(()=> Math.random()-0.5);
+}
+
+/* ---------- もんだいを ひとつ だす ---------- */
+function nextQuestion(){
+  if(state.q >= TOTAL_Q){ showReward(); return; }
+  state.locked = false;
+  state.counted = 0;
+  state.answer = targetCount(state.q);
+  const critter = CRITTERS[Math.floor(Math.random()*CRITTERS.length)];
+
+  $("question").textContent = "なんびき いるかな？";
+  $("recountBtn").style.display = "none";
+
+  // どうぶつを ならべる
+  const field = $("field");
+  field.innerHTML = "";
+  for(let i=0;i<state.answer;i++){
+    const c = document.createElement("div");
+    c.className = "critter";
+    c.style.animationDelay = (i*0.09)+"s";
+    c.innerHTML = `<span class="num"></span>${critter}`;
+    c.addEventListener("click", ()=> tapCritter(c));
+    field.appendChild(c);
+  }
+  setTimeout(sndPop, 120);
+
+  // こたえ ボタン
+  const choices = $("choices");
+  choices.innerHTML = "";
+  makeChoices(state.answer).forEach(n=>{
+    const b = document.createElement("button");
+    b.className = "choice"; b.textContent = n;
+    b.addEventListener("click", ()=> answerTap(n, b));
+    choices.appendChild(b);
+  });
+
+  updateHUD();
+}
+
+/* タップで 1ぴきずつ かぞえる（1対1対応）*/
+function tapCritter(el){
+  if(el.classList.contains("counted")) return;
+  state.counted++;
+  el.classList.add("counted");
+  el.querySelector(".num").textContent = state.counted;
+  sndCount();
+  say(String(state.counted));
+  $("recountBtn").style.display = "block";
+}
+
+function resetCount(){
+  state.counted = 0;
+  [...$("field").children].forEach(c=>{
+    c.classList.remove("counted");
+    c.querySelector(".num").textContent = "";
+  });
+  $("recountBtn").style.display = "none";
+}
+
+/* ---------- こたえあわせ ---------- */
+function answerTap(n, btn){
+  if(state.locked) return;
+  if(n === state.answer){
+    state.locked = true;
+    state.correct++;
+    state.q++;
+    sndCorrect();
+    const words = ["せいかい！","ピンポーン！","すごい！","やったー！","ばっちり！"];
+    flash(words[Math.floor(Math.random()*words.length)]);
+    confetti();
+    say(state.answer + "ひき、せいかい");
+    updateHUD();
+    setTimeout(nextQuestion, 1300);
+  }else{
+    sndWrong();
+    btn.classList.add("wrong");
+    setTimeout(()=> btn.classList.remove("wrong"), 400);
+    $("question").textContent = "もういちど かぞえてみよう";
+    $("recountBtn").style.display = "block";
+  }
+}
+
+/* ---------- ひょうじ こうしん ---------- */
+function updateHUD(){
+  $("score").textContent = "⭐ " + state.correct;
+  $("bar").style.width = (state.q / TOTAL_Q * 100) + "%";
+}
+
+function flash(word){
+  $("flashWord").textContent = word;
+  const f = $("flash"); f.classList.add("show");
+  setTimeout(()=> f.classList.remove("show"), 1100);
+}
+
+function confetti(){
+  const colors = ["#ff6b6b","#ffd93d","#4dabf7","#51c96f","#b07be0"];
+  for(let i=0;i<26;i++){
+    const p = document.createElement("div");
+    p.className = "confetti";
+    p.style.left = Math.random()*100 + "vw";
+    p.style.background = colors[Math.floor(Math.random()*colors.length)];
+    p.style.animation = `fall ${0.9+Math.random()*0.8}s linear forwards`;
+    p.style.animationDelay = (Math.random()*0.2)+"s";
+    document.body.appendChild(p);
+    setTimeout(()=> p.remove(), 2000);
+  }
+}
+
+/* ---------- ごほうび ---------- */
+function showReward(){
+  const sticker = STICKERS[Math.floor(Math.random()*STICKERS.length)];
+  state.earned.push(sticker);
+  $("rewardMark").textContent = sticker;
+  $("rewardSub").textContent = TOTAL_Q + "もん クリア！「" + sticker + "」シールを ゲット！";
+  const box = $("stickers");
+  box.innerHTML = "";
+  state.earned.forEach((s,i)=>{
+    const sp = document.createElement("span");
+    sp.textContent = s; sp.style.animationDelay = (i*0.06)+"s";
+    box.appendChild(sp);
+  });
+  $("game").style.display = "none";
+  $("rewardScreen").classList.remove("hide");
+  sndCorrect();
+  confetti();
+  say("ぜんぶ クリア。やったね");
+}
+
+/* ---------- スタート／リセット ---------- */
+function startGame(){
+  audio(); // iOS：ユーザー操作の なかで おとを ゆうこうに する
+  state.q = 0; state.correct = 0; state.locked = false;
+  $("startScreen").classList.add("hide");
+  $("rewardScreen").classList.add("hide");
+  $("game").style.display = "flex";
+  nextQuestion();
+}
+
+/* ---------- イベント ---------- */
+$("startBtn").addEventListener("click", startGame);
+$("againBtn").addEventListener("click", startGame);
+$("recountBtn").addEventListener("click", resetCount);
+$("homeBtn").addEventListener("click", ()=>{
+  $("game").style.display = "none";
+  $("rewardScreen").classList.add("hide");
+  $("startScreen").classList.remove("hide");
+});
+$("soundToggle").addEventListener("click", e=>{
+  state.sound = !state.sound;
+  e.currentTarget.setAttribute("aria-pressed", state.sound);
+  e.currentTarget.textContent = state.sound ? "🔊 おと あり" : "🔇 おと なし";
+  if(state.sound){ audio(); sndPop(); }
+});
+</script>
+</body>
+</html>

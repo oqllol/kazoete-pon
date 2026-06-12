@@ -3,6 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- 自分のアクセスを計測から除外: ?noga=1 でこの端末をオプトアウト / ?noga=0 で解除 -->
+<script>
+(function(){
+  var GA_ID = 'G-1P4LCPG2X1';
+  try {
+    var p = new URLSearchParams(location.search).get('noga');
+    if (p === '1') localStorage.setItem('ga-optout', '1');
+    else if (p === '0') localStorage.removeItem('ga-optout');
+    if (localStorage.getItem('ga-optout') === '1') window['ga-disable-' + GA_ID] = true;
+  } catch(e){}
+})();
+</script>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-1P4LCPG2X1"></script>
 <script>

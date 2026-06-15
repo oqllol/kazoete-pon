@@ -152,6 +152,22 @@
     box-shadow:0 4px 0 rgba(0,0,0,.06); }
   .toggle-row button[aria-pressed="false"]{ opacity:.5; }
 
+  /* ============ レベルえらび ============ */
+  .levels{ display:flex; gap:clamp(10px,3vw,16px); flex-wrap:wrap; justify-content:center; margin-top:24px; }
+  .level-btn{ position:relative; font-family:var(--maru); font-weight:900; color:#fff;
+    width:clamp(90px,26vw,116px); border:none; border-radius:24px; cursor:pointer; padding:14px 8px 12px;
+    display:flex; flex-direction:column; align-items:center; gap:2px; transition:transform .12s; }
+  .level-btn:active{ transform:translateY(4px); }
+  .level-btn .lv-emoji{ font-size:clamp(34px,10vw,46px); line-height:1; }
+  .level-btn .lv-name{ font-size:15px; }
+  .level-btn .lv-range{ font-size:12px; font-weight:700; opacity:.92; }
+  .level-btn .lv-clear{ position:absolute; top:-12px; right:-8px; font-size:26px;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+  .reward-btns{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:24px; }
+  .reward-btns .start-btn{ margin-top:0; font-size:20px; padding:15px 30px; }
+  .reward-btns .alt-btn{ background:#fff; color:var(--coral); box-shadow:0 6px 0 rgba(0,0,0,.1); }
+  .reward-btns .alt-btn:active{ box-shadow:0 3px 0 rgba(0,0,0,.1); }
+
   /* こんふぇってぃ */
   .confetti{ position:fixed; top:-10px; width:12px; height:16px; z-index:25; pointer-events:none; border-radius:2px; }
   @keyframes fall{ to{ transform:translateY(108vh) rotate(540deg); opacity:.2; } }
@@ -168,8 +184,8 @@
 <div class="screen" id="startScreen">
   <div class="bigmark">🐰</div>
   <h1 class="big">かぞえて ポン</h1>
-  <p class="sub">でてきた どうぶつを かぞえて、おなじ かずの ボタンを ポン！ぜんぶで 10もん。</p>
-  <button class="start-btn" id="startBtn">はじめる</button>
+  <p class="sub">どうぶつを かぞえて、おなじ かずの ボタンを ポン！レベルを えらんでね。</p>
+  <div class="levels" id="levelButtons"></div>
   <div class="toggle-row">
     <button id="soundToggle" aria-pressed="true">🔊 おと あり</button>
   </div>
@@ -179,9 +195,9 @@
 <div class="screen hide" id="rewardScreen">
   <div class="bigmark" id="rewardMark">🏆</div>
   <h1 class="big">やったね！</h1>
-  <p class="sub" id="rewardSub">10もん クリア！シールを ゲット！</p>
+  <p class="sub" id="rewardSub">クリア！シールを ゲット！</p>
   <div class="stickers" id="stickers"></div>
-  <button class="start-btn" id="againBtn">もういちど</button>
+  <div class="reward-btns" id="rewardBtns"></div>
 </div>
 
 <!-- ================= ゲーム ほんたい ================= -->
@@ -217,7 +233,15 @@ const CRITTERS = ["🐰","🐱","🐶","🐻","🐸","🐥","🐧","🦊","🐤"
 const STICKERS = ["🌟","🌈","🍓","🦄","🎈","🌸","🐞","🍭","⭐","🎀","🐠","🍀"];
 const TOTAL_Q  = 10;
 
+/* レベル: かぞえる かずの はんい が だんだん ひろがる */
+const LEVELS = [
+  { id:1, name:"やさしい",   max:5,  emoji:"🐣", bg:"var(--green)", shadow:"#38a754" },
+  { id:2, name:"ふつう",     max:10, emoji:"🐰", bg:"var(--blue)",  shadow:"#2f8fd6" },
+  { id:3, name:"むずかしい", max:15, emoji:"🦊", bg:"var(--coral)", shadow:"var(--coral-d)" }
+];
+
 const state = {
+  level: LEVELS[0],// えらんだ レベル
   q: 0,            // いまの もんだい ばんごう (0..9)
   correct: 0,      // せいかい した かず
   answer: 0,       // いまの こたえ
@@ -226,6 +250,10 @@ const state = {
   sound: true,
   earned: []       // ゲットした シール
 };
+
+/* クリアした レベルを 端末に おぼえておく（⭐ ひょうじ よう）*/
+function getCleared(){ try{ return JSON.parse(localStorage.getItem("kp-cleared")||"[]"); }catch(e){ return []; } }
+function markCleared(id){ const c=getCleared(); if(!c.includes(id)){ c.push(id); try{ localStorage.setItem("kp-cleared", JSON.stringify(c)); }catch(e){} } }
 
 const $ = id => document.getElementById(id);
 
@@ -264,21 +292,23 @@ function say(text){
 
 /* ---------- もんだいの かず（だんだん ふえる）---------- */
 function targetCount(q){
-  let max;
-  if(q < 3)      max = 3;   // さいしょは 1〜3
-  else if(q < 6) max = 5;   // つぎは 1〜5
-  else           max = 9;   // さいごは 1〜9
-  return 1 + Math.floor(Math.random()*max);
+  const lvMax = state.level.max;
+  let cap;
+  if(q < 3)      cap = Math.min(3, lvMax);                  // さいしょは すくなめ
+  else if(q < 6) cap = Math.max(3, Math.round(lvMax*0.6));  // だんだん ふえる
+  else           cap = lvMax;                               // さいごは レベルの max まで
+  return 1 + Math.floor(Math.random()*cap);
 }
 
 /* こたえの せんたくし（せいかい ＋ ちかい はずれ を 3つ）*/
 function makeChoices(answer){
+  const max = state.level.max;
   const set = new Set([answer]);
   while(set.size < 3){
     let d = answer + (Math.floor(Math.random()*5) - 2); // ±2 くらい
-    if(d < 1) d = answer + 1 + Math.floor(Math.random()*2);
-    if(d > 10) d = answer - 1;
-    if(d >= 1) set.add(d);
+    if(d < 1)   d = answer + 1 + Math.floor(Math.random()*2);
+    if(d > max) d = answer - 1 - Math.floor(Math.random()*2);
+    if(d >= 1 && d <= max) set.add(d);
   }
   return [...set].sort(()=> Math.random()-0.5);
 }
@@ -391,10 +421,11 @@ function confetti(){
 
 /* ---------- ごほうび ---------- */
 function showReward(){
+  markCleared(state.level.id);
   const sticker = STICKERS[Math.floor(Math.random()*STICKERS.length)];
   state.earned.push(sticker);
   $("rewardMark").textContent = sticker;
-  $("rewardSub").textContent = TOTAL_Q + "もん クリア！「" + sticker + "」シールを ゲット！";
+  $("rewardSub").textContent = "「" + state.level.name + "」を " + TOTAL_Q + "もん クリア！「" + sticker + "」シールを ゲット！";
   const box = $("stickers");
   box.innerHTML = "";
   state.earned.forEach((s,i)=>{
@@ -402,15 +433,39 @@ function showReward(){
     sp.textContent = s; sp.style.animationDelay = (i*0.06)+"s";
     box.appendChild(sp);
   });
+
+  // ボタン: つぎの レベル（あれば）／ もういちど ／ レベルを えらぶ
+  const btns = $("rewardBtns");
+  btns.innerHTML = "";
+  const next = LEVELS.find(l => l.id === state.level.id + 1);
+  if(next){
+    const nb = document.createElement("button");
+    nb.className = "start-btn";
+    nb.textContent = "つぎの レベル ▶";
+    nb.addEventListener("click", ()=> startGame(next));
+    btns.appendChild(nb);
+  }
+  const ab = document.createElement("button");
+  ab.className = "start-btn alt-btn";
+  ab.textContent = "もういちど";
+  ab.addEventListener("click", ()=> startGame(state.level));
+  btns.appendChild(ab);
+  const cb = document.createElement("button");
+  cb.className = "start-btn alt-btn";
+  cb.textContent = "レベルを えらぶ";
+  cb.addEventListener("click", goHome);
+  btns.appendChild(cb);
+
   $("game").style.display = "none";
   $("rewardScreen").classList.remove("hide");
   sndCorrect();
   confetti();
-  say("ぜんぶ クリア。やったね");
+  say(next ? "クリア。つぎも やってみよう" : "ぜんぶ クリア。やったね");
 }
 
 /* ---------- スタート／リセット ---------- */
-function startGame(){
+function startGame(level){
+  state.level = level || state.level;
   audio(); // iOS：ユーザー操作の なかで おとを ゆうこうに する
   state.q = 0; state.correct = 0; state.locked = false;
   $("startScreen").classList.add("hide");
@@ -419,15 +474,37 @@ function startGame(){
   nextQuestion();
 }
 
-/* ---------- イベント ---------- */
-$("startBtn").addEventListener("click", startGame);
-$("againBtn").addEventListener("click", startGame);
-$("recountBtn").addEventListener("click", resetCount);
-$("homeBtn").addEventListener("click", ()=>{
+/* レベルえらび画面を つくる（クリア済みには ⭐ を つける）*/
+function renderLevelSelect(){
+  const cleared = getCleared();
+  const wrap = $("levelButtons");
+  wrap.innerHTML = "";
+  LEVELS.forEach(lv=>{
+    const b = document.createElement("button");
+    b.className = "level-btn";
+    b.style.background = lv.bg;
+    b.style.boxShadow = "0 8px 0 " + lv.shadow + ", 0 16px 22px -12px rgba(0,0,0,.4)";
+    b.innerHTML =
+      (cleared.includes(lv.id) ? '<span class="lv-clear">⭐</span>' : '') +
+      '<span class="lv-emoji">' + lv.emoji + '</span>' +
+      '<span class="lv-name">' + lv.name + '</span>' +
+      '<span class="lv-range">1〜' + lv.max + '</span>';
+    b.addEventListener("click", ()=> startGame(lv));
+    wrap.appendChild(b);
+  });
+}
+
+function goHome(){
   $("game").style.display = "none";
   $("rewardScreen").classList.add("hide");
   $("startScreen").classList.remove("hide");
-});
+  renderLevelSelect();
+}
+
+/* ---------- イベント ---------- */
+$("recountBtn").addEventListener("click", resetCount);
+$("homeBtn").addEventListener("click", goHome);
+renderLevelSelect(); // さいしょの レベルえらびを ひょうじ
 $("soundToggle").addEventListener("click", e=>{
   state.sound = !state.sound;
   e.currentTarget.setAttribute("aria-pressed", state.sound);
